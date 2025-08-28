@@ -1,14 +1,10 @@
-// curriculo-ia-backend/server.js
-
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config(); // Carrega as variáveis do arquivo .env
-const OpenAI = require('openai'); // Importa a nova biblioteca
+require('dotenv').config();
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Configuração da API da OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 const app = express();
 const PORT = 3001;
@@ -19,28 +15,27 @@ app.use(express.json());
 app.post('/api/improve-text', async (req, res) => {
   try {
     const { text } = req.body;
-    console.log("Recebi este texto para melhorar com OpenAI:", text);
+    if (!text) {
+      return res.status(400).json({ error: "O campo 'text' é obrigatório." });
+    }
 
-    // O "Prompt" é o mesmo, a instrução não muda
-    const prompt = `Você é um especialista em recrutamento e seleção com foco em tecnologia. Sua tarefa é reescrever a descrição de experiência profissional a seguir para torná-la mais impactante para um currículo. Transforme o texto em 3 a 4 bullet points concisos, cada um começando com um verbo de ação forte. Foque em resultados e tecnologias, se mencionados. Texto do usuário: "${text}"`;
+    console.log("Recebi este texto para melhorar com Gemini:", text);
 
-    // A chamada para a API da OpenAI é um pouco diferente
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo", // Modelo rápido e muito capaz
-      messages: [{ role: "user", content: prompt }],
-    });
+    const prompt = `Você é um especialista em recrutamento e seleção com foco em tecnologia. Reescreva a descrição de experiência profissional a seguir para ser mais impactante em um currículo. Transforme o texto em 3 ou 4 bullet points, cada um começando com um verbo de ação forte. Foque em resultados e tecnologias. Texto original: "${text}"`;
 
-    const improvedText = completion.choices[0].message.content.trim();
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const improvedText = response.text();
 
-    console.log("Texto gerado pela OpenAI:", improvedText);
+    console.log("Texto gerado pelo Gemini:", improvedText);
     res.json({ improvedText });
 
   } catch (error) {
-    console.error("Erro na API da OpenAI:", error);
+    console.error("Erro na API do Gemini:", error);
     res.status(500).json({ error: "Ocorreu um erro ao processar sua solicitação com a IA." });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`Servidor Gemini rodando na porta ${PORT}`);
 });
